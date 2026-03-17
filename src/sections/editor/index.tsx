@@ -42,8 +42,6 @@ import { EditorCanvas } from './components/editor-canvas';
 import { AIChatHandle } from './components/ai-chat-handle';
 import { AIChatDrawer } from './components/ai-chat-drawer';
 import { TurnIntoMenu } from './components/turn-into-menu';
-import { AITextDialog } from './components/ai-text-dialog';
-import { AIQuestionDialog } from './components/ai-question-dialog';
 import { generateH5PPackage, downloadH5PPackage } from '../../utils/h5p-generator';
 
 import type { ContentType, CommandOption, CreationState } from './types';
@@ -87,23 +85,6 @@ function EditorPage() {
   // Local UI state - Download
   const [downloadLoading, setDownloadLoading] = React.useState(false);
 
-  // Local UI state - AI Dialogs
-  const [aiQuestionDialog, setAiQuestionDialog] = React.useState({
-    open: false,
-    context: '',
-    loading: false,
-    targetContentId: null as string | null,
-    mode: 'create' as 'create' | 'addBelow' | 'transform',
-  });
-
-  const [aiTextDialog, setAiTextDialog] = React.useState({
-    open: false,
-    context: '',
-    loading: false,
-    targetContentId: null as string | null,
-    mode: 'create' as 'create' | 'addBelow' | 'transform',
-  });
-
   // Hooks for transient UI state
   const menus = useMenus();
   const focusState = useFocusState();
@@ -135,99 +116,82 @@ function EditorPage() {
     }
   };
 
-  // AI Question Dialog handlers
-  const handleGenerateQuestion = async () => {
+  // AI generation helpers
+  const handleGenerateQuestion = async (
+    mode: 'create' | 'addBelow' | 'transform',
+    targetContentId: string | null
+  ) => {
     if (!apiToken.trim()) {
       setSnackbar({ open: true, message: 'Bitte geben Sie einen API-Token ein', severity: 'error' });
       return;
     }
-    setAiQuestionDialog((prev) => ({ ...prev, loading: true }));
     try {
-      const result = await dispatch(
-        generateQuestion({
-          context: aiQuestionDialog.context,
-          mode: aiQuestionDialog.mode,
-          targetContentId: aiQuestionDialog.targetContentId,
-        })
-      ).unwrap();
+      const result = await dispatch(generateQuestion({ mode, targetContentId })).unwrap();
 
-      if (aiQuestionDialog.mode === 'create') {
-        dispatch(worksheetContentsSet(content.length === 0 ? [result] : [result, ...content]));
-      } else if (aiQuestionDialog.mode === 'addBelow' && aiQuestionDialog.targetContentId) {
-        const targetIndex = content.findIndex((c) => c.id === aiQuestionDialog.targetContentId);
+      if (mode === 'create') {
+        dispatch(worksheetContentAdded({ content: result, index: 0 }));
+      } else if (mode === 'addBelow' && targetContentId) {
+        const targetIndex = content.findIndex((c) => c.id === targetContentId);
         dispatch(worksheetContentAdded({ content: result, index: targetIndex + 1 }));
-      } else if (aiQuestionDialog.mode === 'transform' && aiQuestionDialog.targetContentId) {
+      } else if (mode === 'transform' && targetContentId) {
         dispatch(
           worksheetContentsSet(
             content.map((item) =>
-              item.id === aiQuestionDialog.targetContentId
-                ? { ...result, id: aiQuestionDialog.targetContentId }
-                : item
+              item.id === targetContentId ? { ...result, id: targetContentId } : item
             )
           )
         );
       }
       setSnackbar({
         open: true,
-        message: aiQuestionDialog.mode === 'transform' ? 'Inhalt erfolgreich umgewandelt' : 'Frage erfolgreich generiert',
+        message: mode === 'transform' ? 'Inhalt erfolgreich umgewandelt' : 'Frage erfolgreich generiert',
         severity: 'success',
       });
-      setAiQuestionDialog({ open: false, context: '', loading: false, targetContentId: null, mode: 'create' });
     } catch (error) {
       setSnackbar({
         open: true,
         message: error instanceof Error ? error.message : 'Fehler beim Generieren der Frage',
         severity: 'error',
       });
-      setAiQuestionDialog((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  // AI Text Dialog handlers
-  const handleGenerateText = async () => {
+  const handleGenerateText = async (
+    mode: 'create' | 'addBelow' | 'transform',
+    targetContentId: string | null
+  ) => {
     if (!apiToken.trim()) {
       setSnackbar({ open: true, message: 'Bitte geben Sie einen API-Token ein', severity: 'error' });
       return;
     }
-    setAiTextDialog((prev) => ({ ...prev, loading: true }));
     try {
-      const result = await dispatch(
-        generateText({
-          context: aiTextDialog.context,
-          mode: aiTextDialog.mode,
-          targetContentId: aiTextDialog.targetContentId,
-        })
-      ).unwrap();
+      const result = await dispatch(generateText({ mode, targetContentId })).unwrap();
 
-      if (aiTextDialog.mode === 'create') {
-        dispatch(worksheetContentsSet(content.length === 0 ? [result] : [result, ...content]));
-      } else if (aiTextDialog.mode === 'addBelow' && aiTextDialog.targetContentId) {
-        const targetIndex = content.findIndex((c) => c.id === aiTextDialog.targetContentId);
+      if (mode === 'create') {
+        dispatch(worksheetContentAdded({ content: result, index: 0 }));
+      } else if (mode === 'addBelow' && targetContentId) {
+        const targetIndex = content.findIndex((c) => c.id === targetContentId);
         dispatch(worksheetContentAdded({ content: result, index: targetIndex + 1 }));
-      } else if (aiTextDialog.mode === 'transform' && aiTextDialog.targetContentId) {
+      } else if (mode === 'transform' && targetContentId) {
         dispatch(
           worksheetContentsSet(
             content.map((item) =>
-              item.id === aiTextDialog.targetContentId
-                ? { ...result, id: aiTextDialog.targetContentId }
-                : item
+              item.id === targetContentId ? { ...result, id: targetContentId } : item
             )
           )
         );
       }
       setSnackbar({
         open: true,
-        message: aiTextDialog.mode === 'transform' ? 'Inhalt erfolgreich umgewandelt' : 'Text erfolgreich generiert',
+        message: mode === 'transform' ? 'Inhalt erfolgreich umgewandelt' : 'Text erfolgreich generiert',
         severity: 'success',
       });
-      setAiTextDialog({ open: false, context: '', loading: false, targetContentId: null, mode: 'create' });
     } catch (error) {
       setSnackbar({
         open: true,
         message: error instanceof Error ? error.message : 'Fehler beim Generieren des Textes',
         severity: 'error',
       });
-      setAiTextDialog((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -338,20 +302,10 @@ function EditorPage() {
   };
 
   const handleAITurnInto = (contentId: string, targetType: ContentType) => {
-    const currentContent = content.find((c) => c.id === contentId);
-    if (!currentContent) return;
-
-    let contextText = '';
-    if (currentContent.type === 'text') {
-      contextText = currentContent.text;
-    } else if (currentContent.type === 'multiple-choice') {
-      contextText = `Frage: ${currentContent.question}\n\nAntworten:\n${currentContent.answers.map((a) => `- ${a.text}${a.correct ? ' (richtig)' : ''}`).join('\n')}`;
-    }
-
     if (targetType === 'multiple-choice') {
-      setAiQuestionDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode: 'transform' });
+      handleGenerateQuestion('transform', contentId);
     } else if (targetType === 'text') {
-      setAiTextDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode: 'transform' });
+      handleGenerateText('transform', contentId);
     }
     menus.setContentMenu({ anchor: null, contentId: null });
     menus.setTurnIntoMenuAnchor(null);
@@ -418,12 +372,8 @@ function EditorPage() {
           onMCQTextChange={focusState.setMcqTextValue}
           onStartGuidedCreation={startGuidedCreation}
           onWelcomeContentCreate={handleWelcomeContentCreate}
-          onOpenAiQuestionDialog={() =>
-            setAiQuestionDialog({ open: true, context: '', loading: false, targetContentId: null, mode: 'create' })
-          }
-          onOpenAiTextDialog={() =>
-            setAiTextDialog({ open: true, context: '', loading: false, targetContentId: null, mode: 'create' })
-          }
+          onOpenAiQuestionDialog={() => handleGenerateQuestion('create', null)}
+          onOpenAiTextDialog={() => handleGenerateText('create', null)}
         />
 
         {/* AI Chat Handle */}
@@ -451,19 +401,10 @@ function EditorPage() {
         onSelect={handleCommandSelect}
         onAIButtonClick={(contentType, contentId) => {
           const mode = menus.commandMenu.mode === 'transform' ? 'transform' : 'addBelow';
-          let contextText = '';
-          if (mode === 'transform' && contentId) {
-            const cur = content.find((c) => c.id === contentId);
-            if (cur) {
-              if (cur.type === 'text') contextText = cur.text;
-              else if (cur.type === 'multiple-choice')
-                contextText = `Frage: ${cur.question}\n\nAntworten:\n${cur.answers.map((a) => `- ${a.text}${a.correct ? ' (richtig)' : ''}`).join('\n')}`;
-            }
-          }
           if (contentType === 'multiple-choice') {
-            setAiQuestionDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode });
+            handleGenerateQuestion(mode, contentId);
           } else if (contentType === 'text') {
-            setAiTextDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode });
+            handleGenerateText(mode, contentId);
           }
           menus.setCommandMenu({ anchor: null, contentId: null, mode: 'transform' });
         }}
@@ -494,28 +435,6 @@ function EditorPage() {
         onAITransform={(contentType) => {
           if (menus.contentMenu.contentId) handleAITurnInto(menus.contentMenu.contentId, contentType);
         }}
-      />
-
-      {/* AI Question Generation Dialog */}
-      <AIQuestionDialog
-        dialogState={aiQuestionDialog}
-        apiToken={apiToken}
-        onClose={() =>
-          setAiQuestionDialog({ open: false, context: '', loading: false, targetContentId: null, mode: 'create' })
-        }
-        onContextChange={(context) => setAiQuestionDialog((prev) => ({ ...prev, context }))}
-        onGenerate={handleGenerateQuestion}
-      />
-
-      {/* AI Text Generation Dialog */}
-      <AITextDialog
-        dialogState={aiTextDialog}
-        apiToken={apiToken}
-        onClose={() =>
-          setAiTextDialog({ open: false, context: '', loading: false, targetContentId: null, mode: 'create' })
-        }
-        onContextChange={(context) => setAiTextDialog((prev) => ({ ...prev, context }))}
-        onGenerate={handleGenerateText}
       />
 
       {/* Snackbar */}

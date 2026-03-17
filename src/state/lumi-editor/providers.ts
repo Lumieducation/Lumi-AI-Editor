@@ -5,7 +5,7 @@ import type { ProviderType, ProviderConfig } from './types';
 export const PROVIDERS: Record<ProviderType, ProviderConfig> = {
   openai: {
     name: 'OpenAI',
-    endpoint: '/api/openai/v1/chat/completions',
+    endpoint: 'https://api.openai.com/v1/chat/completions',
     requiresModel: true,
   },
 };

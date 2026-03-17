@@ -99,7 +99,7 @@ async function callOpenAI(
   requiresModel: boolean
 ): Promise<string> {
   const body: Record<string, unknown> = { messages, temperature: 0.7 };
-  if (requiresModel) body.model = 'gpt-4';
+  if (requiresModel) body.model = 'gpt-5.2';
 
   const response = await fetch(apiEndpoint, {
     method: 'POST',
@@ -123,21 +123,33 @@ async function callOpenAI(
 
 export const generateQuestion = createAsyncThunk<
   MultipleChoiceContent,
-  { context: string; mode: 'create' | 'addBelow' | 'transform'; targetContentId: string | null },
+  { mode: 'create' | 'addBelow' | 'transform'; targetContentId: string | null },
   { state: RootState; dispatch: AppDispatch }
->('lumiEditor/generateQuestion', async ({ context, mode }, { getState }) => {
+>('lumiEditor/generateQuestion', async ({ mode, targetContentId }, { getState }) => {
   const state = getState();
   const provider = selectProvider(state);
   const apiEndpoint = selectApiEndpoint(state);
   const apiToken = selectApiToken(state);
+  const title = selectTitle(state);
+  const content = selectOrderedContent(state);
 
   if (!apiToken.trim()) throw new Error('Bitte geben Sie einen API-Token ein');
-  if (!context.trim()) throw new Error('Bitte geben Sie einen Kontext für die Frage ein');
+
+  const targetItem = targetContentId ? content.find((c) => c.id === targetContentId) : null;
+
+  const context =
+    mode === 'transform' && targetItem
+      ? targetItem.type === 'text'
+        ? targetItem.text
+        : targetItem.type === 'multiple-choice'
+          ? `Frage: ${targetItem.question}\nAntworten:\n${targetItem.answers.map((a) => `${a.correct ? '* ' : ''}${a.text}`).join('\n')}`
+          : buildWorksheetContext(title, content)
+      : buildWorksheetContext(title, content);
 
   const prompt =
     mode === 'transform'
       ? `Wandle den folgenden Inhalt in eine Multiple-Choice-Frage um:\n\n${context}\n\nBehalte den Sinn und Inhalt bei, aber verwandle es in eine lehrreiche Multiple-Choice-Frage mit Antwortmöglichkeiten.\n\nWICHTIG: Antworte NUR mit einem JSON-Objekt im folgenden Format (keine zusätzlichen Erklärungen):\n{\n  "question": "Die Frage hier",\n  "answers": [\n    {"text": "Antwort 1", "correct": false},\n    {"text": "Richtige Antwort", "correct": true}\n  ]\n}\n\nDie Frage und alle Antworten müssen auf Deutsch sein. Erstelle mindestens 2 und maximal 4 Antwortmöglichkeiten.`
-      : `Erstelle eine Multiple-Choice-Frage basierend auf folgendem Kontext:\n\n${context}\n\nWICHTIG: Antworte NUR mit einem JSON-Objekt im folgenden Format (keine zusätzlichen Erklärungen):\n{\n  "question": "Die Frage hier",\n  "answers": [\n    {"text": "Antwort 1", "correct": false},\n    {"text": "Richtige Antwort", "correct": true}\n  ]\n}\n\nDie Frage und alle Antworten müssen auf Deutsch sein. Erstelle mindestens 2 und maximal 4 Antwortmöglichkeiten.`;
+      : `Erstelle eine Multiple-Choice-Frage basierend auf folgendem Arbeitsblatt-Kontext:\n\n${context}\n\nWICHTIG: Antworte NUR mit einem JSON-Objekt im folgenden Format (keine zusätzlichen Erklärungen):\n{\n  "question": "Die Frage hier",\n  "answers": [\n    {"text": "Antwort 1", "correct": false},\n    {"text": "Richtige Antwort", "correct": true}\n  ]\n}\n\nDie Frage und alle Antworten müssen auf Deutsch sein. Erstelle mindestens 2 und maximal 4 Antwortmöglichkeiten.`;
 
   const raw = await callOpenAI(
     [{ role: 'user', content: prompt }],
@@ -162,21 +174,33 @@ export const generateQuestion = createAsyncThunk<
 
 export const generateText = createAsyncThunk<
   TextContent,
-  { context: string; mode: 'create' | 'addBelow' | 'transform'; targetContentId: string | null },
+  { mode: 'create' | 'addBelow' | 'transform'; targetContentId: string | null },
   { state: RootState; dispatch: AppDispatch }
->('lumiEditor/generateText', async ({ context, mode }, { getState }) => {
+>('lumiEditor/generateText', async ({ mode, targetContentId }, { getState }) => {
   const state = getState();
   const provider = selectProvider(state);
   const apiEndpoint = selectApiEndpoint(state);
   const apiToken = selectApiToken(state);
+  const title = selectTitle(state);
+  const content = selectOrderedContent(state);
 
   if (!apiToken.trim()) throw new Error('Bitte geben Sie einen API-Token ein');
-  if (!context.trim()) throw new Error('Bitte geben Sie einen Kontext für den Text ein');
+
+  const targetItem = targetContentId ? content.find((c) => c.id === targetContentId) : null;
+
+  const context =
+    mode === 'transform' && targetItem
+      ? targetItem.type === 'text'
+        ? targetItem.text
+        : targetItem.type === 'multiple-choice'
+          ? `Frage: ${targetItem.question}\nAntworten:\n${targetItem.answers.map((a) => `${a.correct ? '* ' : ''}${a.text}`).join('\n')}`
+          : buildWorksheetContext(title, content)
+      : buildWorksheetContext(title, content);
 
   const prompt =
     mode === 'transform'
       ? `Wandle den folgenden Inhalt in einen informativen Text um:\n\n${context}\n\nBehalte den Kerninhalt und die Bedeutung bei, aber verwandle es in einen gut strukturierten, informativen Text.\n\nDer Text sollte:\n- Auf Deutsch verfasst sein\n- Gut strukturiert und verständlich sein\n- Für Bildungszwecke geeignet sein\n- 2-4 Absätze lang sein\n\nAntworte NUR mit dem Text selbst, ohne zusätzliche Erklärungen oder Formatierung.`
-      : `Erstelle einen informativen und lehrreichen Text basierend auf folgendem Kontext:\n\n${context}\n\nDer Text sollte:\n- Auf Deutsch verfasst sein\n- Gut strukturiert und verständlich sein\n- Für Bildungszwecke geeignet sein\n- 2-4 Absätze lang sein\n\nAntworte NUR mit dem Text selbst, ohne zusätzliche Erklärungen oder Formatierung.`;
+      : `Erstelle einen informativen und lehrreichen Text basierend auf folgendem Arbeitsblatt-Kontext:\n\n${context}\n\nDer Text sollte:\n- Auf Deutsch verfasst sein\n- Gut strukturiert und verständlich sein\n- Für Bildungszwecke geeignet sein\n- 2-4 Absätze lang sein\n\nAntworte NUR mit dem Text selbst, ohne zusätzliche Erklärungen oder Formatierung.`;
 
   const raw = await callOpenAI(
     [{ role: 'user', content: prompt }],
