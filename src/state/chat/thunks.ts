@@ -51,14 +51,16 @@ function extractWorksheetBlock(raw: string): {
     }
   }
 
-  if (jsonEnd === -1) return { displayText: raw, payload: null };
+  // If braces are unbalanced, strip from marker start to end of string
+  if (jsonEnd === -1) {
+    return { displayText: raw.slice(0, blockStart).trim(), payload: null };
+  }
 
-  // Find the closing ] of the outer marker
+  // Find the closing ] of the outer marker; if missing, strip to end of string
   const blockEnd = raw.indexOf(']', jsonEnd);
-  if (blockEnd === -1) return { displayText: raw, payload: null };
-
-  // Always strip the block from display text
-  const displayText = (raw.slice(0, blockStart) + raw.slice(blockEnd + 1)).trim();
+  const displayText = blockEnd === -1
+    ? raw.slice(0, blockStart).trim()
+    : (raw.slice(0, blockStart) + raw.slice(blockEnd + 1)).trim();
 
   try {
     const payload = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as WorksheetUpdatePayload;
@@ -117,18 +119,25 @@ export const sendMessage =
       const content = selectOrderedContent(state);
 
       const systemPrompt = buildSystemPrompt(title, content);
+      const currentStateJson = JSON.stringify({ title, content });
 
-      const openAiMessages = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
+      // Inject the current editor state into the last user message (API only, not stored in state)
+      const openAiMessages = messages.map((msg, index) => {
+        if (index === messages.length - 1 && msg.role === 'user') {
+          return {
+            role: msg.role,
+            content: `${msg.content}\n\n[Aktueller Stand des Arbeitsblatts: ${currentStateJson}]`,
+          };
+        }
+        return { role: msg.role, content: msg.content };
+      });
 
       const requestBody: Record<string, unknown> = {
         messages: [{ role: 'system', content: systemPrompt }, ...openAiMessages],
       };
 
       if (PROVIDERS[provider].requiresModel) {
-        requestBody.model = 'gpt-4o';
+        requestBody.model = 'gpt-5.4';
       }
 
       const response = await axios.post(apiEndpoint, requestBody, {

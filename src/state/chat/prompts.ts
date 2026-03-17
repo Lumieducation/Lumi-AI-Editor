@@ -3,30 +3,16 @@ import type { Content } from 'src/state/lumi-editor/types';
 // ----------------------------------------------------------------------
 
 function serializeEditorState(title: string, content: Content[]): string {
-  if (!title && content.length === 0) {
-    return 'Das Arbeitsblatt ist noch leer.';
-  }
-
-  const lines: string[] = [`Titel: "${title || '(kein Titel)'}"`, 'Inhalte:'];
-
-  if (content.length === 0) {
-    lines.push('  (keine Inhalte)');
-  } else {
-    content.forEach((item, i) => {
-      if (item.type === 'text') {
-        lines.push(`  ${i + 1}. [text] "${item.text.slice(0, 80)}${item.text.length > 80 ? '…' : ''}"`);
-      } else if (item.type === 'multiple-choice') {
-        const answers = item.answers.map((a) => `${a.text}${a.correct ? ' ✓' : ''}`).join(', ');
-        lines.push(`  ${i + 1}. [multiple-choice] Frage: "${item.question}" | Antworten: ${answers}`);
-      } else if (item.type === 'fill-in-the-blanks') {
-        lines.push(`  ${i + 1}. [fill-in-the-blanks] "${item.text.slice(0, 80)}${item.text.length > 80 ? '…' : ''}"`);
-      } else if (item.type === 'freetext') {
-        lines.push(`  ${i + 1}. [freetext] "${item.task.slice(0, 80)}${item.task.length > 80 ? '…' : ''}"`);
-      }
-    });
-  }
-
-  return lines.join('\n');
+  const items = content.map((item) => {
+    if (item.type === 'text') {
+      return { type: 'text', text: item.text.slice(0, 120) };
+    }
+    if (item.type === 'multiple-choice') {
+      return { type: 'multiple-choice', question: item.question, answers: item.answers };
+    }
+    return { type: item.type };
+  });
+  return JSON.stringify({ title, content: items });
 }
 
 // ----------------------------------------------------------------------
@@ -34,7 +20,7 @@ function serializeEditorState(title: string, content: Content[]): string {
 export function buildSystemPrompt(title: string, content: Content[]): string {
   const editorState = serializeEditorState(title, content);
 
-  return `Du bist "Lumi", ein freundlicher Assistent, der Lernmaterial erstellt. Deine Aufgabe ist es, durch gezielte Fragen alle Informationen zu sammeln, die nötig sind, um ein hochwertiges interaktives Arbeitsblatt zu einem Thema zu erstellen.
+  return `Du bist "Lumi", ein freundlicher Assistent, der Lernmaterial erstellt. Deine Aufgabe ist es, durch gezielte Fragen alle Informationen zu sammeln und das Arbeitsblatt schrittweise aufzubauen.
 
 Ablauf des Gesprächs:
 1. Frage freundlich, welches Thema der Nutzer lernen möchte.
@@ -50,24 +36,27 @@ Deine Regeln:
 - Stelle immer nur eine Frage auf einmal.
 - Halte deine Nachrichten kurz und freundlich.
 - Verwende KEINE Emojis.
+- Schreibe KEINE Inhalte direkt in den Chat. Inhalte gehören ausschließlich in den WORKSHEET_UPDATE-Block.
 
 Vorschläge:
-- Biete dem Nutzer am Ende jeder Nachricht 2 bis 3 mögliche Antworten an, die er direkt anklicken kann:
+- Biete dem Nutzer am Ende der sichtbaren Nachricht 2 bis 3 mögliche Antworten an:
 [VORSCHLÄGE: Mögliche Antwort 1 | Mögliche Antwort 2 | Mögliche Antwort 3]
 
-WORKSHEET_UPDATE – Pflichtformat (JEDE Antwort):
-- Du MUSST am Ende JEDER Antwort exakt einen WORKSHEET_UPDATE-Block einfügen – ohne Ausnahme.
-- Der Block enthält immer den VOLLSTÄNDIGEN aktuellen Zustand des Arbeitsblatts (Titel + alle Inhalte).
-- Baue das Arbeitsblatt schrittweise auf – aktualisiere es mit jedem neuen Wissen aus dem Gespräch:
-  • Sobald das Thema klar ist → setze den Titel.
-  • Sobald Zielgruppe oder Schwerpunkte klar sind → ergänze oder überarbeite Inhalte.
-  • Sobald du genug weißt → füge Multiple-Choice-Fragen und Texte hinzu.
-- Wenn noch kein Inhalt bekannt ist, sende trotzdem den Block mit leerem content-Array.
-- Format – valides JSON, kompakt in einer Zeile:
-[WORKSHEET_UPDATE: {"title": "Titel des Arbeitsblatts", "content": [{"type": "text", "text": "Erklärungstext..."}, {"type": "multiple-choice", "question": "Frage?", "answers": [{"text": "Richtige Antwort", "correct": true}, {"text": "Falsche Antwort", "correct": false}]}]}]
-- Unterstützte Typen: "text" (Feld: "text"), "multiple-choice" (Felder: "question", "answers").
-- Der Block wird dem Nutzer NICHT angezeigt – er aktualisiert das Arbeitsblatt automatisch im Hintergrund.
+Aktueller Zustand des Arbeitsblatts (nur zur Information, niemals so in den Chat schreiben):
+${editorState}
 
-Aktueller Zustand des Arbeitsblatts:
-${editorState}`;
+WICHTIG – Pflichtblock am Ende jeder Antwort:
+Jede Antwort muss mit genau dieser Zeile enden (valides JSON, keine Zeilenumbrüche im Block):
+[WORKSHEET_UPDATE: {"title": "...", "content": [{"type": "text", "text": "..."}, {"type": "multiple-choice", "question": "...?", "answers": [{"text": "...", "correct": true}, {"text": "...", "correct": false}]}]}]
+Dieser Block ist für den Nutzer unsichtbar. Schreibe Inhalte NUR in diesen Block, niemals direkt in den Chat.
+Sende immer den vollständigen Zustand: Titel + alle Inhalte. Zum Entfernen eines Elements: weglassen. Zum Bearbeiten: aktualisiert senden.
+
+Was in den WORKSHEET_UPDATE gehört:
+- "title": der Titel des Arbeitsblatts (Thema)
+- "content": nur fertige Lerninhalte – erklärende Texte (type "text") und Multiple-Choice-Fragen (type "multiple-choice")
+
+Was NICHT in den WORKSHEET_UPDATE gehört:
+- Zielgruppe, Altersgruppe oder Schwierigkeitsgrad
+- Planungsnotizen, Lernziele oder Gesprächszusammenfassungen
+- Alles, was nur zur Gesprächsführung dient und kein direkter Lerninhalt ist`;
 }
