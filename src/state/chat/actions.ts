@@ -1,8 +1,9 @@
+import { uuidv4 } from 'minimal-shared/utils';
+
+import { CHAT_MESSAGE_SEND, CHAT_MESSAGE_RECEIVED } from './action-types';
+
 import type { ChatMessage } from './types';
 import type { ChatSendMessageAction, ChatReceiveMessageAction } from './action-types';
-
-import { uuidv4 } from 'minimal-shared/utils';
-import { CHAT_MESSAGE_SEND, CHAT_MESSAGE_RECEIVED } from './action-types';
 
 const buildMessage = (body: string, senderId: string): ChatMessage => ({
   id: uuidv4(),

@@ -1,5 +1,4 @@
 import type * as ActionTypes from 'src/state/action-types';
-import type { ChatMessage, PreviewDocument } from './types';
 
 import {
   CHAT_H5P_ERROR,
@@ -11,6 +10,8 @@ import {
   CHAT_PREVIEW_UPDATED,
   CHAT_MESSAGE_RECEIVED,
 } from './action-types';
+
+import type { ChatMessage, PreviewDocument } from './types';
 
 export interface IChatState {
   messages: ChatMessage[];
