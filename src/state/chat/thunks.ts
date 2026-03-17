@@ -24,14 +24,48 @@ type WorksheetUpdatePayload = {
   >;
 };
 
-function parseWorksheetUpdate(raw: string): WorksheetUpdatePayload | null {
-  const match = raw.match(/\[WORKSHEET_UPDATE:\s*(\{[\s\S]*?\})\s*\]/);
-  if (!match) return null;
+/** Strips [WORKSHEET_UPDATE: {...}] from raw AI output and attempts to parse
+ *  the JSON payload. The block is always removed from the returned text, even
+ *  when the JSON is malformed. */
+function extractWorksheetBlock(raw: string): {
+  displayText: string;
+  payload: WorksheetUpdatePayload | null;
+} {
+  const blockStart = raw.indexOf('[WORKSHEET_UPDATE:');
+  if (blockStart === -1) return { displayText: raw, payload: null };
+
+  const jsonStart = raw.indexOf('{', blockStart);
+  if (jsonStart === -1) return { displayText: raw, payload: null };
+
+  // Walk forward counting braces to find the matching closing brace
+  let depth = 0;
+  let jsonEnd = -1;
+  for (let i = jsonStart; i < raw.length; i++) {
+    if (raw[i] === '{') depth++;
+    else if (raw[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        jsonEnd = i;
+        break;
+      }
+    }
+  }
+
+  if (jsonEnd === -1) return { displayText: raw, payload: null };
+
+  // Find the closing ] of the outer marker
+  const blockEnd = raw.indexOf(']', jsonEnd);
+  if (blockEnd === -1) return { displayText: raw, payload: null };
+
+  // Always strip the block from display text
+  const displayText = (raw.slice(0, blockStart) + raw.slice(blockEnd + 1)).trim();
+
   try {
-    return JSON.parse(match[1]) as WorksheetUpdatePayload;
+    const payload = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as WorksheetUpdatePayload;
+    return { displayText, payload };
   } catch {
-    console.warn('Failed to parse WORKSHEET_UPDATE JSON:', match[1]);
-    return null;
+    console.warn('Failed to parse WORKSHEET_UPDATE JSON:', raw.slice(jsonStart, jsonEnd + 1));
+    return { displayText, payload: null };
   }
 }
 
@@ -106,16 +140,11 @@ export const sendMessage =
 
       const rawReply: string = response.data.choices[0].message.content;
 
-      // Apply worksheet update if present
-      const worksheetUpdate = parseWorksheetUpdate(rawReply);
-      if (worksheetUpdate) {
-        applyWorksheetUpdate(worksheetUpdate, dispatch);
+      // Strip worksheet block from chat text and apply update if parseable
+      const { displayText: reply, payload } = extractWorksheetBlock(rawReply);
+      if (payload) {
+        applyWorksheetUpdate(payload, dispatch);
       }
-
-      // Strip markers before storing in chat
-      const reply = rawReply
-        .replace(/\[WORKSHEET_UPDATE:\s*\{[\s\S]*?\}\s*\]/g, '')
-        .trim();
 
       dispatch(
         chatMessageAdded({
