@@ -2,10 +2,15 @@ import type { RootState, AppDispatch } from 'src/state';
 
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import { PROVIDERS } from './providers';
 import { chatMessageAdded } from 'src/state/chat/actions';
 import { selectChatMessages } from 'src/state/chat/selectors';
 
+import { PROVIDERS } from './providers';
+import {
+  worksheetContentsSet,
+  worksheetTitleChanged,
+  worksheetContentAdded,
+} from './lumiEditorSlice';
 import {
   selectTitle,
   selectProvider,
@@ -13,11 +18,6 @@ import {
   selectApiEndpoint,
   selectOrderedContent,
 } from './lumiEditorSelectors';
-import {
-  worksheetTitleChanged,
-  worksheetContentAdded,
-  worksheetContentsSet,
-} from './lumiEditorSlice';
 
 import type { Content, TextContent, MultipleChoiceContent } from './types';
 

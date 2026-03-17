@@ -1,4 +1,4 @@
-import type { TextContent, MultipleChoiceContent, FillInTheBlanks } from './types';
+import type { TextContent, FillInTheBlanks, MultipleChoiceContent } from './types';
 
 type Content = TextContent | MultipleChoiceContent | FillInTheBlanks;
 

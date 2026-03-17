@@ -4,31 +4,31 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 
-import { useSelector, useDispatch } from 'src/state';
 import { sendMessage } from 'src/state/chat/thunks';
-import { selectChatMessages, selectChatLoading } from 'src/state/chat/selectors';
+import { useSelector, useDispatch } from 'src/state';
+import { selectChatLoading, selectChatMessages } from 'src/state/chat/selectors';
+import {
+  generateText,
+  generateQuestion,
+} from 'src/state/lumi-editor/lumiEditorThunks';
 import {
   selectTitle,
   selectProvider,
   selectApiToken,
-  selectHasContent,
-  selectApiEndpoint,
-  selectOrderedContent,
-  createContentHelper,
   providerChanged,
   apiTokenChanged,
+  selectHasContent,
+  selectApiEndpoint,
   apiEndpointChanged,
-  worksheetTitleChanged,
+  createContentHelper,
+  selectOrderedContent,
   worksheetContentsSet,
+  worksheetTitleChanged,
   worksheetContentAdded,
   worksheetContentUpdated,
   worksheetContentDeleted,
   worksheetContentDuplicated,
 } from 'src/state/lumi-editor';
-import {
-  generateText,
-  generateQuestion,
-} from 'src/state/lumi-editor/lumiEditorThunks';
 
 import { useMenus } from './hooks/use-menus';
 import { metadata, drawerWidth } from './constants';

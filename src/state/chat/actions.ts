@@ -1,11 +1,11 @@
 import {
-  CHAT_MESSAGE_ADDED,
-  CHAT_MESSAGES_SET,
   CHAT_CLEARED,
+  CHAT_MESSAGES_SET,
+  CHAT_MESSAGE_ADDED,
 } from './action-types';
 
 import type { ChatMessage } from './types';
-import type { ChatMessageAddedAction, ChatMessagesSetAction, ChatClearedAction } from './action-types';
+import type { ChatClearedAction, ChatMessagesSetAction, ChatMessageAddedAction } from './action-types';
 
 export const chatMessageAdded = (message: ChatMessage): ChatMessageAddedAction => ({
   type: CHAT_MESSAGE_ADDED,

@@ -3,12 +3,13 @@ import type { Content } from 'src/state/lumi-editor/types';
 
 import axios from 'axios';
 
-import { buildSystemPrompt } from './prompts';
-import { chatMessageAdded } from './actions';
-import { CHAT_API_PENDING, CHAT_API_SETTLED } from './action-types';
-import { selectApiToken, selectApiEndpoint, selectProvider, selectTitle, selectOrderedContent } from 'src/state/lumi-editor/lumiEditorSelectors';
-import { worksheetTitleChanged, worksheetContentsSet } from 'src/state/lumi-editor/lumiEditorSlice';
 import { PROVIDERS } from 'src/state/lumi-editor/providers';
+import { worksheetContentsSet, worksheetTitleChanged } from 'src/state/lumi-editor/lumiEditorSlice';
+import { selectTitle, selectApiToken, selectProvider, selectApiEndpoint, selectOrderedContent } from 'src/state/lumi-editor/lumiEditorSelectors';
+
+import { chatMessageAdded } from './actions';
+import { buildSystemPrompt } from './prompts';
+import { CHAT_API_PENDING, CHAT_API_SETTLED } from './action-types';
 
 // ----------------------------------------------------------------------
 

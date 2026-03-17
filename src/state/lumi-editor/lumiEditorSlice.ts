@@ -2,9 +2,9 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 
 import { createSlice } from '@reduxjs/toolkit';
 
-import type { ID, Content, TextContent, MultipleChoiceContent, FillInTheBlanks, Freetext, LumiEditorState, ProviderType } from './types';
-
 import { PROVIDERS, DEFAULT_PROVIDER } from './providers';
+
+import type { ID, Content, Freetext, TextContent, ProviderType, FillInTheBlanks, LumiEditorState, MultipleChoiceContent } from './types';
 
 // ----------------------------------------------------------------------
 
