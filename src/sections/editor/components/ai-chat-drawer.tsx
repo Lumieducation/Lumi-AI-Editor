@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
@@ -18,6 +18,17 @@ import type { ChatMessage } from '../types';
 
 // ----------------------------------------------------------------------
 
+/** Splits a message into display text and suggestion chips (from [VORSCHLÄGE: ...] markers). */
+function parseMessage(content: string): { text: string; suggestions: string[] } {
+  const match = content.match(/\[VORSCHLÄGE:\s*(.+?)\]/s);
+  if (!match) return { text: content.trim(), suggestions: [] };
+  const suggestions = match[1].split('|').map((s) => s.trim()).filter(Boolean);
+  const text = content.replace(match[0], '').trim();
+  return { text, suggestions };
+}
+
+// ----------------------------------------------------------------------
+
 type AIChatDrawerProps = {
   open: boolean;
   apiToken: string;
@@ -29,6 +40,7 @@ type AIChatDrawerProps = {
   onChatInputChange: (value: string) => void;
   onSendMessage: () => void;
   onStartGuidedCreation: () => void;
+  onSuggestionClick: (text: string) => void;
 };
 
 export function AIChatDrawer({
@@ -42,6 +54,7 @@ export function AIChatDrawer({
   onChatInputChange,
   onSendMessage,
   onStartGuidedCreation,
+  onSuggestionClick,
 }: AIChatDrawerProps) {
   return (
     <Drawer
@@ -65,13 +78,6 @@ export function AIChatDrawer({
           </IconButton>
         </Box>
 
-        {/* API Configuration Warning */}
-        {!apiToken && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Geben Sie Ihren API-Token in der Kopfzeile ein, um den KI-Chat zu nutzen.
-          </Alert>
-        )}
-
         {/* Chat Messages Area */}
         <Box
           sx={{
@@ -86,12 +92,7 @@ export function AIChatDrawer({
           }}
         >
           {chatMessages.length === 0 ? (
-            <Stack
-              spacing={2}
-              alignItems="center"
-              justifyContent="center"
-              sx={{ height: '100%' }}
-            >
+            <Stack spacing={2} alignItems="center" justifyContent="center" sx={{ height: '100%' }}>
               <Iconify icon="solar:cup-star-bold" width={48} sx={{ color: 'text.secondary' }} />
               <Typography color="text.secondary" textAlign="center" variant="body2">
                 Bitte mich, dir bei deinem Arbeitsblatt zu helfen!
@@ -109,47 +110,57 @@ export function AIChatDrawer({
               </Button>
             </Stack>
           ) : (
-            chatMessages.map((msg) => (
-              <Box
-                key={msg.id}
-                sx={{
-                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '85%',
-                }}
-              >
-                <Paper
-                  sx={{
-                    p: 1.5,
-                    backgroundColor: (theme) =>
-                      msg.role === 'user'
-                        ? theme.palette.primary.main
-                        : theme.palette.background.paper,
-                    color: (theme) =>
-                      msg.role === 'user'
-                        ? theme.palette.primary.contrastText
-                        : theme.palette.text.primary,
-                    borderRadius: 2,
-                  }}
+            chatMessages.map((msg) => {
+              const { text, suggestions } = parseMessage(msg.content);
+              return (
+                <Box
+                  key={msg.id}
+                  sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}
                 >
-                  <Typography
-                    variant="body2"
+                  <Paper
                     sx={{
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      '& code': {
-                        backgroundColor: (theme) => alpha(theme.palette.grey[500], 0.2),
-                        px: 0.5,
-                        borderRadius: 0.5,
-                        fontFamily: 'monospace',
-                      },
+                      p: 1.5,
+                      backgroundColor: (theme) =>
+                        msg.role === 'user'
+                          ? theme.palette.primary.main
+                          : theme.palette.background.paper,
+                      color: (theme) =>
+                        msg.role === 'user'
+                          ? theme.palette.primary.contrastText
+                          : theme.palette.text.primary,
+                      borderRadius: 2,
                     }}
                   >
-                    {msg.content}
-                  </Typography>
-                </Paper>
-              </Box>
-            ))
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {text}
+                    </Typography>
+                  </Paper>
+
+                  {suggestions.length > 0 && (
+                    <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
+                      {suggestions.map((s) => (
+                        <Chip
+                          key={s}
+                          label={s}
+                          size="small"
+                          variant="outlined"
+                          onClick={() => onSuggestionClick(s)}
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              );
+            })
           )}
+
           {chatLoading && (
             <Box sx={{ alignSelf: 'flex-start' }}>
               <Paper
@@ -169,6 +180,7 @@ export function AIChatDrawer({
               </Paper>
             </Box>
           )}
+
           <div ref={chatMessagesEndRef} />
         </Box>
 

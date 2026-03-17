@@ -5,8 +5,8 @@ import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 
 import { useSelector, useDispatch } from 'src/state';
-import { chatMessageAdded } from 'src/state/chat/actions';
-import { selectChatMessages } from 'src/state/chat/selectors';
+import { sendMessage } from 'src/state/chat/thunks';
+import { selectChatMessages, selectChatLoading } from 'src/state/chat/selectors';
 import {
   selectTitle,
   selectProvider,
@@ -27,7 +27,6 @@ import {
 } from 'src/state/lumi-editor';
 import {
   generateText,
-  sendChatMessage,
   generateQuestion,
 } from 'src/state/lumi-editor/lumiEditorThunks';
 
@@ -44,7 +43,7 @@ import { AIChatDrawer } from './components/ai-chat-drawer';
 import { TurnIntoMenu } from './components/turn-into-menu';
 import { generateH5PPackage, downloadH5PPackage } from '../../utils/h5p-generator';
 
-import type { ContentType, CommandOption, CreationState, GeneratingSkeleton } from './types';
+import type { ContentType, CommandOption, GeneratingSkeleton } from './types';
 
 // ----------------------------------------------------------------------
 
@@ -63,12 +62,7 @@ function EditorPage() {
   // Local UI state - Chat
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
   const [chatInput, setChatInput] = React.useState('');
-  const [chatLoading, setChatLoading] = React.useState(false);
-  const [creationState, setCreationState] = React.useState<CreationState>({
-    step: 'idle',
-    topic: '',
-    audience: '',
-  });
+  const chatLoading = useSelector(selectChatLoading);
   const chatMessagesEndRef = React.useRef<HTMLDivElement>(null);
 
   // Local UI state - Snackbar
@@ -218,76 +212,15 @@ function EditorPage() {
       setSnackbar({ open: true, message: 'Bitte geben Sie Ihren API-Token ein', severity: 'error' });
       return;
     }
-    dispatch(
-      chatMessageAdded({
-        id: `msg-${Date.now()}`,
-        role: 'assistant',
-        content:
-          'Hallo! Ich helfe dir beim Erstellen eines Arbeitsblatts. Lass uns mit den Grundlagen beginnen.\n\nWelches Thema soll dein Arbeitsblatt behandeln?',
-        createdAt: Date.now(),
-      })
-    );
-    setCreationState({ step: 'asking_topic', topic: '', audience: '' });
     setChatDrawerOpen(true);
+    dispatch(sendMessage('Hilf mir bitte ein Arbeitsblatt zu erstellen.', 'user'));
   };
 
-  const handleSendChatMessage = async () => {
+  const handleSendChatMessage = () => {
     if (!apiToken.trim() || !chatInput.trim()) return;
-
     const userInput = chatInput;
-    dispatch(
-      chatMessageAdded({
-        id: `msg-${Date.now()}`,
-        role: 'user',
-        content: userInput,
-        createdAt: Date.now(),
-      })
-    );
     setChatInput('');
-    setChatLoading(true);
-
-    try {
-      const result = await dispatch(sendChatMessage({ userInput, creationState })).unwrap();
-
-      dispatch(
-        chatMessageAdded({
-          ...result.assistantMessage,
-          createdAt: Date.now(),
-        })
-      );
-
-      if (creationState.step === 'asking_topic') {
-        setCreationState((prev) => ({ ...prev, step: 'asking_audience', topic: userInput }));
-      } else if (creationState.step === 'asking_audience') {
-        setCreationState({ step: 'done', topic: creationState.topic, audience: userInput });
-      }
-
-      if (result.commands && result.commands.length > 0) {
-        result.commands.forEach((cmd) => {
-          if (cmd.action === 'add_text') {
-            setSnackbar({ open: true, message: 'Textblock hinzugefügt', severity: 'success' });
-          } else if (cmd.action === 'add_question') {
-            setSnackbar({ open: true, message: 'Frage hinzugefügt', severity: 'success' });
-          } else if (cmd.action === 'set_title') {
-            setSnackbar({ open: true, message: 'Titel aktualisiert', severity: 'success' });
-          }
-        });
-      }
-    } catch (error) {
-      dispatch(
-        chatMessageAdded({
-          id: `msg-${Date.now()}`,
-          role: 'assistant',
-          content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
-          createdAt: Date.now(),
-        })
-      );
-      if (creationState.step === 'generating') {
-        setCreationState((prev) => ({ ...prev, step: 'asking_audience' }));
-      }
-    } finally {
-      setChatLoading(false);
-    }
+    dispatch(sendMessage(userInput, 'user'));
   };
 
   // Command menu handlers
@@ -410,6 +343,9 @@ function EditorPage() {
         onChatInputChange={setChatInput}
         onSendMessage={handleSendChatMessage}
         onStartGuidedCreation={startGuidedCreation}
+        onSuggestionClick={(text) => {
+          dispatch(sendMessage(text, 'user'));
+        }}
       />
 
       {/* Command Menu */}

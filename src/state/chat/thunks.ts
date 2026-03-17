@@ -5,12 +5,12 @@ import axios from 'axios';
 import { SYSTEM_PROMPT } from './prompts';
 import { chatMessageAdded } from './actions';
 import { CHAT_API_PENDING, CHAT_API_SETTLED } from './action-types';
+import { selectApiToken, selectApiEndpoint, selectProvider } from 'src/state/lumi-editor/lumiEditorSelectors';
+import { PROVIDERS } from 'src/state/lumi-editor/providers';
 
 // ----------------------------------------------------------------------
 
 export const ASSISTANT_SENDER_ID = 'assistant';
-
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 // ----------------------------------------------------------------------
 
@@ -28,26 +28,31 @@ export const sendMessage =
     );
 
     try {
-      const { messages } = getState().chat;
+      const state = getState();
+      const { messages } = state.chat;
+      const apiToken = selectApiToken(state);
+      const apiEndpoint = selectApiEndpoint(state);
+      const provider = selectProvider(state);
 
       const openAiMessages = messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
       }));
 
-      const response = await axios.post(
-        OPENAI_API_URL,
-        {
-          model: 'gpt-5.2',
-          messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...openAiMessages],
+      const requestBody: Record<string, unknown> = {
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...openAiMessages],
+      };
+
+      if (PROVIDERS[provider].requiresModel) {
+        requestBody.model = 'gpt-4o';
+      }
+
+      const response = await axios.post(apiEndpoint, requestBody, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiToken}`,
         },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-          },
-        }
-      );
+      });
 
       const rawReply: string = response.data.choices[0].message.content;
       const H5P_MARKER = '[H5P_BEREIT]';
@@ -62,7 +67,15 @@ export const sendMessage =
         })
       );
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error('Chat API error:', error);
+      dispatch(
+        chatMessageAdded({
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `Fehler: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`,
+          createdAt: Date.now(),
+        })
+      );
     } finally {
       dispatch({ type: CHAT_API_SETTLED });
     }
