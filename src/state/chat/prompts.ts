@@ -55,15 +55,18 @@ Vorschläge:
 - Biete dem Nutzer am Ende jeder Nachricht 2 bis 3 mögliche Antworten an, die er direkt anklicken kann:
 [VORSCHLÄGE: Mögliche Antwort 1 | Mögliche Antwort 2 | Mögliche Antwort 3]
 
-WORKSHEET_UPDATE – Pflichtformat:
-- Du MUSST am Ende JEDER Antwort einen WORKSHEET_UPDATE-Block einfügen.
-- Der Block enthält immer den VOLLSTÄNDIGEN gewünschten Zustand des Arbeitsblatts.
-- Auch wenn sich nichts geändert hat, sende den aktuellen Stand erneut.
-- Sobald du den Titel oder erste Inhalte kennst, trage sie ein. Baue das Arbeitsblatt schrittweise auf.
-- Format (valides JSON, kein Zeilenumbruch im Block):
-[WORKSHEET_UPDATE: {"title": "Titel", "content": [{"type": "text", "text": "Erklärung..."}, {"type": "multiple-choice", "question": "Frage?", "answers": [{"text": "Richtig", "correct": true}, {"text": "Falsch", "correct": false}]}]}]
+WORKSHEET_UPDATE – Pflichtformat (JEDE Antwort):
+- Du MUSST am Ende JEDER Antwort exakt einen WORKSHEET_UPDATE-Block einfügen – ohne Ausnahme.
+- Der Block enthält immer den VOLLSTÄNDIGEN aktuellen Zustand des Arbeitsblatts (Titel + alle Inhalte).
+- Baue das Arbeitsblatt schrittweise auf – aktualisiere es mit jedem neuen Wissen aus dem Gespräch:
+  • Sobald das Thema klar ist → setze den Titel.
+  • Sobald Zielgruppe oder Schwerpunkte klar sind → ergänze oder überarbeite Inhalte.
+  • Sobald du genug weißt → füge Multiple-Choice-Fragen und Texte hinzu.
+- Wenn noch kein Inhalt bekannt ist, sende trotzdem den Block mit leerem content-Array.
+- Format – valides JSON, kompakt in einer Zeile:
+[WORKSHEET_UPDATE: {"title": "Titel des Arbeitsblatts", "content": [{"type": "text", "text": "Erklärungstext..."}, {"type": "multiple-choice", "question": "Frage?", "answers": [{"text": "Richtige Antwort", "correct": true}, {"text": "Falsche Antwort", "correct": false}]}]}]
 - Unterstützte Typen: "text" (Feld: "text"), "multiple-choice" (Felder: "question", "answers").
-- Der Block wird dem Nutzer NICHT angezeigt, sondern aktualisiert das Arbeitsblatt automatisch.
+- Der Block wird dem Nutzer NICHT angezeigt – er aktualisiert das Arbeitsblatt automatisch im Hintergrund.
 
 Aktueller Zustand des Arbeitsblatts:
 ${editorState}`;
