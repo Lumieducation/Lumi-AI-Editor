@@ -44,7 +44,7 @@ import { AIChatDrawer } from './components/ai-chat-drawer';
 import { TurnIntoMenu } from './components/turn-into-menu';
 import { generateH5PPackage, downloadH5PPackage } from '../../utils/h5p-generator';
 
-import type { ContentType, CommandOption, CreationState } from './types';
+import type { ContentType, CommandOption, CreationState, GeneratingSkeleton } from './types';
 
 // ----------------------------------------------------------------------
 
@@ -84,6 +84,9 @@ function EditorPage() {
 
   // Local UI state - Download
   const [downloadLoading, setDownloadLoading] = React.useState(false);
+
+  // Local UI state - Generating skeletons
+  const [generatingSkeletons, setGeneratingSkeletons] = React.useState<GeneratingSkeleton[]>([]);
 
   // Hooks for transient UI state
   const menus = useMenus();
@@ -125,6 +128,11 @@ function EditorPage() {
       setSnackbar({ open: true, message: 'Bitte geben Sie einen API-Token ein', severity: 'error' });
       return;
     }
+    const skeletonId = `skeleton-${Date.now()}`;
+    setGeneratingSkeletons((prev) => [
+      ...prev,
+      { id: skeletonId, type: 'multiple-choice', mode, targetContentId },
+    ]);
     try {
       const result = await dispatch(generateQuestion({ mode, targetContentId })).unwrap();
 
@@ -153,6 +161,8 @@ function EditorPage() {
         message: error instanceof Error ? error.message : 'Fehler beim Generieren der Frage',
         severity: 'error',
       });
+    } finally {
+      setGeneratingSkeletons((prev) => prev.filter((s) => s.id !== skeletonId));
     }
   };
 
@@ -164,6 +174,11 @@ function EditorPage() {
       setSnackbar({ open: true, message: 'Bitte geben Sie einen API-Token ein', severity: 'error' });
       return;
     }
+    const skeletonId = `skeleton-${Date.now()}`;
+    setGeneratingSkeletons((prev) => [
+      ...prev,
+      { id: skeletonId, type: 'text', mode, targetContentId },
+    ]);
     try {
       const result = await dispatch(generateText({ mode, targetContentId })).unwrap();
 
@@ -192,6 +207,8 @@ function EditorPage() {
         message: error instanceof Error ? error.message : 'Fehler beim Generieren des Textes',
         severity: 'error',
       });
+    } finally {
+      setGeneratingSkeletons((prev) => prev.filter((s) => s.id !== skeletonId));
     }
   };
 
@@ -344,6 +361,7 @@ function EditorPage() {
         <EditorCanvas
           title={title}
           content={content}
+          generatingSkeletons={generatingSkeletons}
           focusedTextId={focusState.focusedTextId}
           focusedMCQId={focusState.focusedMCQId}
           mcqTextValue={focusState.mcqTextValue}

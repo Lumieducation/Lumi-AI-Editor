@@ -66,6 +66,13 @@ export type SnackbarState = {
 
 export type DropPosition = 'before' | 'after';
 
+export type GeneratingSkeleton = {
+  id: string;
+  type: 'text' | 'multiple-choice';
+  mode: 'create' | 'addBelow' | 'transform';
+  targetContentId: string | null;
+};
+
 export type WorksheetCommand = {
   action: string;
   text?: string;

@@ -1,3 +1,5 @@
+import * as React from 'react';
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
@@ -9,16 +11,18 @@ import { ContentItem } from './content-item';
 import { WelcomeState } from './welcome-state';
 import { MCQContentRenderer } from './mcq-content';
 import { TextContentRenderer } from './text-content';
+import { ContentSkeleton } from './content-skeleton';
 import { mcqToText, textToMcq } from '../utils/mcq-parser';
 import { ContentOptionsGrid } from './content-options-grid';
 
-import type { Content, CommandOption } from '../types';
+import type { Content, CommandOption, GeneratingSkeleton } from '../types';
 
 // ----------------------------------------------------------------------
 
 type EditorCanvasProps = {
   title: string;
   content: Content[];
+  generatingSkeletons: GeneratingSkeleton[];
   focusedTextId: string | null;
   focusedMCQId: string | null;
   mcqTextValue: string;
@@ -47,6 +51,7 @@ type EditorCanvasProps = {
 export function EditorCanvas({
   title,
   content,
+  generatingSkeletons,
   focusedTextId,
   focusedMCQId,
   mcqTextValue,
@@ -147,7 +152,7 @@ export function EditorCanvas({
 
             {/* Content Area */}
             <Stack spacing={2}>
-              {content.length === 0 ? (
+              {content.length === 0 && generatingSkeletons.length === 0 ? (
                 !title || title.trim() === '' ? (
                   <WelcomeState onStartGuidedCreation={onStartGuidedCreation} />
                 ) : (
@@ -163,29 +168,53 @@ export function EditorCanvas({
                   />
                 )
               ) : (
-                content.map((item) => {
-                  const isActive = focusedTextId === item.id || focusedMCQId === item.id;
-                  const isDropTarget = dropTargetId === item.id;
+                <>
+                  {/* 'create' skeletons go at the top */}
+                  {generatingSkeletons
+                    .filter((s) => s.mode === 'create')
+                    .map((s) => (
+                      <ContentSkeleton key={s.id} type={s.type} />
+                    ))}
 
-                  return (
-                    <ContentItem
-                      key={item.id}
-                      item={item}
-                      isActive={isActive}
-                      isDropTarget={isDropTarget}
-                      dropPosition={dropPosition}
-                      onDelete={() => onDeleteContent(item.id)}
-                      onAddBelow={(e) => onAddBelowClick(e, item.id)}
-                      onMenuOpen={(e) => onContentMenuClick(e, item.id)}
-                      onDragStart={(e) => onDragStart(e, item.id)}
-                      onDragEnd={onDragEnd}
-                      onDragOver={(e) => onDragOver(e, item.id)}
-                      onDrop={(e) => onDrop(e, item.id)}
-                    >
-                      {renderContentItem(item)}
-                    </ContentItem>
-                  );
-                })
+                  {content.map((item) => {
+                    const isActive = focusedTextId === item.id || focusedMCQId === item.id;
+                    const isDropTarget = dropTargetId === item.id;
+                    const transformSkeleton = generatingSkeletons.find(
+                      (s) => s.mode === 'transform' && s.targetContentId === item.id
+                    );
+
+                    return (
+                      <React.Fragment key={item.id}>
+                        {transformSkeleton ? (
+                          <ContentSkeleton type={transformSkeleton.type} />
+                        ) : (
+                          <ContentItem
+                            item={item}
+                            isActive={isActive}
+                            isDropTarget={isDropTarget}
+                            dropPosition={dropPosition}
+                            onDelete={() => onDeleteContent(item.id)}
+                            onAddBelow={(e) => onAddBelowClick(e, item.id)}
+                            onMenuOpen={(e) => onContentMenuClick(e, item.id)}
+                            onDragStart={(e) => onDragStart(e, item.id)}
+                            onDragEnd={onDragEnd}
+                            onDragOver={(e) => onDragOver(e, item.id)}
+                            onDrop={(e) => onDrop(e, item.id)}
+                          >
+                            {renderContentItem(item)}
+                          </ContentItem>
+                        )}
+
+                        {/* 'addBelow' skeletons go after their target */}
+                        {generatingSkeletons
+                          .filter((s) => s.mode === 'addBelow' && s.targetContentId === item.id)
+                          .map((s) => (
+                            <ContentSkeleton key={s.id} type={s.type} />
+                          ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </>
               )}
             </Stack>
           </Stack>
