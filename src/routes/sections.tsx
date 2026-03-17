@@ -42,6 +42,14 @@ const renderFallback = () => (
 
 export const routesSection: RouteObject[] = [
   {
+    index: true,
+    element: (
+      <Suspense fallback={renderFallback()}>
+        <HomePage />
+      </Suspense>
+    ),
+  },
+  {
     element: (
       <DashboardLayout>
         <Suspense fallback={renderFallback()}>
@@ -50,7 +58,6 @@ export const routesSection: RouteObject[] = [
       </DashboardLayout>
     ),
     children: [
-      { index: true, element: <HomePage /> },
       { path: 'user', element: <UserPage /> },
       { path: 'products', element: <ProductsPage /> },
       { path: 'blog', element: <BlogPage /> },

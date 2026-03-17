@@ -9,14 +9,14 @@ export const metadata = { title: `Arbeitsblatt-Editor - ${CONFIG.appName}` };
 export const drawerWidth = 450;
 
 export const PROVIDERS: Record<ProviderType, ProviderConfig> = {
-  ailg: {
-    name: 'AILG',
-    endpoint: '/api/ailg/api/v1/chat/completions',
-    requiresModel: false,
-  },
+    openai: {
+      name: 'OpenAI',
+      endpoint: '/api/openai/v1/chat/completions',
+      requiresModel: true,
+    }
 };
 
-export const DEFAULT_PROVIDER: ProviderType = 'ailg';
+export const DEFAULT_PROVIDER: ProviderType = 'openai';
 
 export const commandOptions: CommandOption[] = [
   {

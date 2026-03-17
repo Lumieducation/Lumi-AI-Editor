@@ -3,7 +3,7 @@ import type { IconifyName } from 'src/components/iconify/register-icons';
 // ----------------------------------------------------------------------
 
 // Provider configuration
-export type ProviderType = 'ailg';
+export type ProviderType = 'openai';
 
 export type ProviderConfig = {
   name: string;
