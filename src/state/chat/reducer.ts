@@ -1,14 +1,15 @@
 import type * as ActionTypes from 'src/state/action-types';
 
 import {
+  CHAT_CLEARED,
   CHAT_H5P_ERROR,
   CHAT_API_PENDING,
   CHAT_API_SETTLED,
-  CHAT_MESSAGE_SEND,
+  CHAT_MESSAGES_SET,
   CHAT_H5P_GENERATED,
   CHAT_H5P_GENERATING,
+  CHAT_MESSAGE_ADDED,
   CHAT_PREVIEW_UPDATED,
-  CHAT_MESSAGE_RECEIVED,
 } from './action-types';
 
 import type { ChatMessage, PreviewDocument } from './types';
@@ -40,9 +41,12 @@ export default function chatReducer(
   action: ActionTypes.ActionTypes
 ): IChatState {
   switch (action.type) {
-    case CHAT_MESSAGE_SEND:
-    case CHAT_MESSAGE_RECEIVED:
+    case CHAT_MESSAGE_ADDED:
       return { ...state, messages: [...state.messages, action.payload] };
+    case CHAT_MESSAGES_SET:
+      return { ...state, messages: action.payload };
+    case CHAT_CLEARED:
+      return { ...state, messages: [] };
     case CHAT_API_PENDING:
       return { ...state, loading: true };
     case CHAT_API_SETTLED:

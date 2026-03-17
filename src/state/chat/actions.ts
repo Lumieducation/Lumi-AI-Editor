@@ -1,25 +1,22 @@
-import { uuidv4 } from 'minimal-shared/utils';
-
-import { CHAT_MESSAGE_SEND, CHAT_MESSAGE_RECEIVED } from './action-types';
+import {
+  CHAT_MESSAGE_ADDED,
+  CHAT_MESSAGES_SET,
+  CHAT_CLEARED,
+} from './action-types';
 
 import type { ChatMessage } from './types';
-import type { ChatSendMessageAction, ChatReceiveMessageAction } from './action-types';
+import type { ChatMessageAddedAction, ChatMessagesSetAction, ChatClearedAction } from './action-types';
 
-const buildMessage = (body: string, senderId: string): ChatMessage => ({
-  id: uuidv4(),
-  body,
-  senderId,
-  contentType: 'text',
-  createdAt: Date.now(),
-  attachments: [],
+export const chatMessageAdded = (message: ChatMessage): ChatMessageAddedAction => ({
+  type: CHAT_MESSAGE_ADDED,
+  payload: message,
 });
 
-export const chatSendMessage = (body: string, senderId: string): ChatSendMessageAction => ({
-  type: CHAT_MESSAGE_SEND,
-  payload: buildMessage(body, senderId),
+export const chatMessagesSet = (messages: ChatMessage[]): ChatMessagesSetAction => ({
+  type: CHAT_MESSAGES_SET,
+  payload: messages,
 });
 
-export const chatReceiveMessage = (body: string, senderId: string): ChatReceiveMessageAction => ({
-  type: CHAT_MESSAGE_RECEIVED,
-  payload: buildMessage(body, senderId),
+export const chatCleared = (): ChatClearedAction => ({
+  type: CHAT_CLEARED,
 });

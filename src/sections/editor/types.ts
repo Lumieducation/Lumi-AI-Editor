@@ -1,45 +1,29 @@
+import type { ContentType } from 'src/state/lumi-editor';
 import type { IconifyName } from 'src/components/iconify/register-icons';
 
+// Re-export shared types from the state layer so editor components can import from one place
+export type { ChatMessage } from 'src/state/chat/types';
+
+export type {
+  ID,
+  Content,
+  Freetext,
+  ContentType,
+  TextContent,
+  ProviderType,
+  ProviderConfig,
+  LumiEditorState,
+  FillInTheBlanks,
+  MultipleChoiceContent,
+} from 'src/state/lumi-editor';
+
 // ----------------------------------------------------------------------
-
-// Provider configuration
-export type ProviderType = 'openai';
-
-export type ProviderConfig = {
-  name: string;
-  endpoint: string;
-  requiresModel: boolean;
-};
-
-// Chat types
-export type ChatMessage = {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-};
+// Editor-only types (UI state that does not belong in Redux)
 
 export type OpenAIChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
 };
-
-// Content types
-export type ContentType = 'text' | 'multiple-choice';
-
-export type TextContent = {
-  id: string;
-  type: 'text';
-  text: string;
-};
-
-export type MultipleChoiceContent = {
-  id: string;
-  type: 'multiple-choice';
-  question: string;
-  answers: Array<{ text: string; correct: boolean }>;
-};
-
-export type Content = TextContent | MultipleChoiceContent;
 
 export type CommandOption = {
   id: string;
@@ -49,7 +33,6 @@ export type CommandOption = {
   icon: IconifyName;
 };
 
-// State types
 export type CreationState = {
   step: 'idle' | 'asking_topic' | 'asking_audience' | 'generating' | 'done';
   topic: string;
@@ -83,7 +66,6 @@ export type SnackbarState = {
 
 export type DropPosition = 'before' | 'after';
 
-// Worksheet command types
 export type WorksheetCommand = {
   action: string;
   text?: string;

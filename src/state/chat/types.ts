@@ -1,10 +1,8 @@
 export interface ChatMessage {
   id: string;
-  body: string;
-  senderId: string;
-  contentType: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
   createdAt: number;
-  attachments: unknown[];
 }
 
 export interface PreviewChapter {

@@ -4,6 +4,33 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 
+import { useSelector, useDispatch } from 'src/state';
+import { chatMessageAdded } from 'src/state/chat/actions';
+import { selectChatMessages } from 'src/state/chat/selectors';
+import {
+  selectTitle,
+  selectProvider,
+  selectApiToken,
+  selectHasContent,
+  selectApiEndpoint,
+  selectOrderedContent,
+  createContentHelper,
+  providerChanged,
+  apiTokenChanged,
+  apiEndpointChanged,
+  worksheetTitleChanged,
+  worksheetContentsSet,
+  worksheetContentAdded,
+  worksheetContentUpdated,
+  worksheetContentDeleted,
+  worksheetContentDuplicated,
+} from 'src/state/lumi-editor';
+import {
+  generateText,
+  sendChatMessage,
+  generateQuestion,
+} from 'src/state/lumi-editor/lumiEditorThunks';
+
 import { useMenus } from './hooks/use-menus';
 import { metadata, drawerWidth } from './constants';
 import { useDragDrop } from './hooks/use-drag-drop';
@@ -16,48 +43,24 @@ import { AIChatHandle } from './components/ai-chat-handle';
 import { AIChatDrawer } from './components/ai-chat-drawer';
 import { TurnIntoMenu } from './components/turn-into-menu';
 import { AITextDialog } from './components/ai-text-dialog';
-import { useAppDispatch, useAppSelector } from './store/hooks';
 import { AIQuestionDialog } from './components/ai-question-dialog';
 import { generateH5PPackage, downloadH5PPackage } from '../../utils/h5p-generator';
-import { generateText, sendChatMessage, generateQuestion } from './store/editor-thunks';
-import {
-  selectTitle,
-  selectContent,
-  selectProvider,
-  selectApiToken,
-  selectHasContent,
-  selectApiEndpoint,
-  selectChatMessages,
-  createContentHelper,
-} from './store/editor-selectors';
-import {
-  setTitle,
-  setContent,
-  setProvider,
-  setApiToken,
-  updateContent,
-  deleteContent,
-  setApiEndpoint,
-  addChatMessage,
-  insertContentAt,
-  duplicateContent,
-} from './store/editor-slice';
 
 import type { ContentType, CommandOption, CreationState } from './types';
 
 // ----------------------------------------------------------------------
 
 function EditorPage() {
-  const dispatch = useAppDispatch();
+  const dispatch = useDispatch();
 
   // Redux state (data only)
-  const provider = useAppSelector(selectProvider);
-  const apiEndpoint = useAppSelector(selectApiEndpoint);
-  const apiToken = useAppSelector(selectApiToken);
-  const title = useAppSelector(selectTitle);
-  const content = useAppSelector(selectContent);
-  const hasContent = useAppSelector(selectHasContent);
-  const chatMessages = useAppSelector(selectChatMessages);
+  const provider = useSelector(selectProvider);
+  const apiEndpoint = useSelector(selectApiEndpoint);
+  const apiToken = useSelector(selectApiToken);
+  const title = useSelector(selectTitle);
+  const content = useSelector(selectOrderedContent);
+  const hasContent = useSelector(selectHasContent);
+  const chatMessages = useSelector(selectChatMessages);
 
   // Local UI state - Chat
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
@@ -101,12 +104,14 @@ function EditorPage() {
     mode: 'create' as 'create' | 'addBelow' | 'transform',
   });
 
-  // Use existing hooks for UI state
+  // Hooks for transient UI state
   const menus = useMenus();
   const focusState = useFocusState();
-  const dragDrop = useDragDrop(content, (newContent) => dispatch(setContent(newContent)));
+  const dragDrop = useDragDrop(content, (newContent) =>
+    dispatch(worksheetContentsSet(newContent))
+  );
 
-  // Auto-scroll chat when messages change
+  // Auto-scroll chat
   React.useEffect(() => {
     chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
@@ -115,23 +120,11 @@ function EditorPage() {
   const handleDownload = async () => {
     setDownloadLoading(true);
     try {
-      setSnackbar({
-        open: true,
-        message: 'H5P-Paket wird vorbereitet...',
-        severity: 'info',
-      });
-
+      setSnackbar({ open: true, message: 'H5P-Paket wird vorbereitet...', severity: 'info' });
       const h5pBlob = await generateH5PPackage(title, content);
-      const filename = title.trim() || 'interactive-book';
-      downloadH5PPackage(h5pBlob, filename);
-
-      setSnackbar({
-        open: true,
-        message: 'H5P-Paket erfolgreich heruntergeladen!',
-        severity: 'success',
-      });
+      downloadH5PPackage(h5pBlob, title.trim() || 'interactive-book');
+      setSnackbar({ open: true, message: 'H5P-Paket erfolgreich heruntergeladen!', severity: 'success' });
     } catch (error) {
-      console.error('Error generating H5P package:', error);
       setSnackbar({
         open: true,
         message: `Fehler beim Erstellen des H5P-Pakets: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`,
@@ -145,16 +138,10 @@ function EditorPage() {
   // AI Question Dialog handlers
   const handleGenerateQuestion = async () => {
     if (!apiToken.trim()) {
-      setSnackbar({
-        open: true,
-        message: 'Bitte geben Sie einen API-Token ein',
-        severity: 'error',
-      });
+      setSnackbar({ open: true, message: 'Bitte geben Sie einen API-Token ein', severity: 'error' });
       return;
     }
-
     setAiQuestionDialog((prev) => ({ ...prev, loading: true }));
-
     try {
       const result = await dispatch(
         generateQuestion({
@@ -165,14 +152,13 @@ function EditorPage() {
       ).unwrap();
 
       if (aiQuestionDialog.mode === 'create') {
-        dispatch(setContent(content.length === 0 ? [result] : [result, ...content]));
+        dispatch(worksheetContentsSet(content.length === 0 ? [result] : [result, ...content]));
       } else if (aiQuestionDialog.mode === 'addBelow' && aiQuestionDialog.targetContentId) {
         const targetIndex = content.findIndex((c) => c.id === aiQuestionDialog.targetContentId);
-        dispatch(insertContentAt({ content: result, index: targetIndex + 1 }));
+        dispatch(worksheetContentAdded({ content: result, index: targetIndex + 1 }));
       } else if (aiQuestionDialog.mode === 'transform' && aiQuestionDialog.targetContentId) {
-        // Update existing content preserving the ID
         dispatch(
-          setContent(
+          worksheetContentsSet(
             content.map((item) =>
               item.id === aiQuestionDialog.targetContentId
                 ? { ...result, id: aiQuestionDialog.targetContentId }
@@ -181,7 +167,6 @@ function EditorPage() {
           )
         );
       }
-
       setSnackbar({
         open: true,
         message: aiQuestionDialog.mode === 'transform' ? 'Inhalt erfolgreich umgewandelt' : 'Frage erfolgreich generiert',
@@ -201,16 +186,10 @@ function EditorPage() {
   // AI Text Dialog handlers
   const handleGenerateText = async () => {
     if (!apiToken.trim()) {
-      setSnackbar({
-        open: true,
-        message: 'Bitte geben Sie einen API-Token ein',
-        severity: 'error',
-      });
+      setSnackbar({ open: true, message: 'Bitte geben Sie einen API-Token ein', severity: 'error' });
       return;
     }
-
     setAiTextDialog((prev) => ({ ...prev, loading: true }));
-
     try {
       const result = await dispatch(
         generateText({
@@ -221,14 +200,13 @@ function EditorPage() {
       ).unwrap();
 
       if (aiTextDialog.mode === 'create') {
-        dispatch(setContent(content.length === 0 ? [result] : [result, ...content]));
+        dispatch(worksheetContentsSet(content.length === 0 ? [result] : [result, ...content]));
       } else if (aiTextDialog.mode === 'addBelow' && aiTextDialog.targetContentId) {
         const targetIndex = content.findIndex((c) => c.id === aiTextDialog.targetContentId);
-        dispatch(insertContentAt({ content: result, index: targetIndex + 1 }));
+        dispatch(worksheetContentAdded({ content: result, index: targetIndex + 1 }));
       } else if (aiTextDialog.mode === 'transform' && aiTextDialog.targetContentId) {
-        // Update existing content preserving the ID
         dispatch(
-          setContent(
+          worksheetContentsSet(
             content.map((item) =>
               item.id === aiTextDialog.targetContentId
                 ? { ...result, id: aiTextDialog.targetContentId }
@@ -237,7 +215,6 @@ function EditorPage() {
           )
         );
       }
-
       setSnackbar({
         open: true,
         message: aiTextDialog.mode === 'transform' ? 'Inhalt erfolgreich umgewandelt' : 'Text erfolgreich generiert',
@@ -260,60 +237,50 @@ function EditorPage() {
       setSnackbar({ open: true, message: 'Bitte geben Sie Ihren API-Token ein', severity: 'error' });
       return;
     }
-
     dispatch(
-      addChatMessage({
+      chatMessageAdded({
         id: `msg-${Date.now()}`,
         role: 'assistant',
         content:
           'Hallo! Ich helfe dir beim Erstellen eines Arbeitsblatts. Lass uns mit den Grundlagen beginnen.\n\nWelches Thema soll dein Arbeitsblatt behandeln?',
+        createdAt: Date.now(),
       })
     );
-    setCreationState({
-      step: 'asking_topic',
-      topic: '',
-      audience: '',
-    });
+    setCreationState({ step: 'asking_topic', topic: '', audience: '' });
     setChatDrawerOpen(true);
   };
 
   const handleSendChatMessage = async () => {
     if (!apiToken.trim() || !chatInput.trim()) return;
 
-    const userMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'user' as const,
-      content: chatInput,
-    };
-
     const userInput = chatInput;
-    dispatch(addChatMessage(userMessage));
+    dispatch(
+      chatMessageAdded({
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content: userInput,
+        createdAt: Date.now(),
+      })
+    );
     setChatInput('');
     setChatLoading(true);
 
     try {
-      const result = await dispatch(
-        sendChatMessage({ userInput, creationState })
-      ).unwrap();
+      const result = await dispatch(sendChatMessage({ userInput, creationState })).unwrap();
 
-      dispatch(addChatMessage(result.assistantMessage));
+      dispatch(
+        chatMessageAdded({
+          ...result.assistantMessage,
+          createdAt: Date.now(),
+        })
+      );
 
-      // Update creation state based on step
       if (creationState.step === 'asking_topic') {
-        setCreationState((prev) => ({
-          ...prev,
-          step: 'asking_audience',
-          topic: userInput,
-        }));
+        setCreationState((prev) => ({ ...prev, step: 'asking_audience', topic: userInput }));
       } else if (creationState.step === 'asking_audience') {
-        setCreationState({
-          step: 'done',
-          topic: creationState.topic,
-          audience: userInput,
-        });
+        setCreationState({ step: 'done', topic: creationState.topic, audience: userInput });
       }
 
-      // Show snackbar for commands
       if (result.commands && result.commands.length > 0) {
         result.commands.forEach((cmd) => {
           if (cmd.action === 'add_text') {
@@ -326,13 +293,14 @@ function EditorPage() {
         });
       }
     } catch (error) {
-      const errorMessage = {
-        id: `msg-${Date.now()}`,
-        role: 'assistant' as const,
-        content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
-      };
-      dispatch(addChatMessage(errorMessage));
-
+      dispatch(
+        chatMessageAdded({
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
+          createdAt: Date.now(),
+        })
+      );
       if (creationState.step === 'generating') {
         setCreationState((prev) => ({ ...prev, step: 'asking_audience' }));
       }
@@ -344,37 +312,35 @@ function EditorPage() {
   // Command menu handlers
   const handleCommandSelect = (option: CommandOption) => {
     if (menus.commandMenu.contentId === null) return;
-
     if (menus.commandMenu.mode === 'addBelow') {
       const newContent = createContentHelper(option.contentType);
       const currentIndex = content.findIndex((c) => c.id === menus.commandMenu.contentId);
-      dispatch(insertContentAt({ content: newContent, index: currentIndex + 1 }));
+      dispatch(worksheetContentAdded({ content: newContent, index: currentIndex + 1 }));
     }
-
     menus.setCommandMenu({ anchor: null, contentId: null, mode: 'transform' });
   };
 
   const handleWelcomeContentCreate = (option: CommandOption) => {
     if (!title || title.trim() === '') return;
     const newContent = createContentHelper(option.contentType);
-    dispatch(setContent([newContent]));
+    dispatch(worksheetContentsSet([newContent]));
   };
 
   const handleTurnInto = (contentId: string, targetType: ContentType) => {
     const newContent = createContentHelper(targetType);
     dispatch(
-      setContent(content.map((item) => (item.id === contentId ? { ...newContent, id: contentId } : item)))
+      worksheetContentsSet(
+        content.map((item) => (item.id === contentId ? { ...newContent, id: contentId } : item))
+      )
     );
     menus.setContentMenu({ anchor: null, contentId: null });
     menus.setTurnIntoMenuAnchor(null);
   };
 
   const handleAITurnInto = (contentId: string, targetType: ContentType) => {
-    // Find the current content to get its text for transformation
     const currentContent = content.find((c) => c.id === contentId);
     if (!currentContent) return;
 
-    // Extract text from current content
     let contextText = '';
     if (currentContent.type === 'text') {
       contextText = currentContent.text;
@@ -382,26 +348,11 @@ function EditorPage() {
       contextText = `Frage: ${currentContent.question}\n\nAntworten:\n${currentContent.answers.map((a) => `- ${a.text}${a.correct ? ' (richtig)' : ''}`).join('\n')}`;
     }
 
-    // Open the appropriate AI dialog in transform mode
     if (targetType === 'multiple-choice') {
-      setAiQuestionDialog({
-        open: true,
-        context: contextText,
-        loading: false,
-        targetContentId: contentId,
-        mode: 'transform',
-      });
+      setAiQuestionDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode: 'transform' });
     } else if (targetType === 'text') {
-      setAiTextDialog({
-        open: true,
-        context: contextText,
-        loading: false,
-        targetContentId: contentId,
-        mode: 'transform',
-      });
+      setAiTextDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode: 'transform' });
     }
-
-    // Close menus
     menus.setContentMenu({ anchor: null, contentId: null });
     menus.setTurnIntoMenuAnchor(null);
   };
@@ -429,9 +380,9 @@ function EditorPage() {
           apiToken={apiToken}
           downloadLoading={downloadLoading}
           hasContent={hasContent}
-          onProviderChange={(newProvider) => dispatch(setProvider(newProvider))}
-          onEndpointChange={(endpoint) => dispatch(setApiEndpoint(endpoint))}
-          onTokenChange={(token) => dispatch(setApiToken(token))}
+          onProviderChange={(newProvider) => dispatch(providerChanged(newProvider))}
+          onEndpointChange={(endpoint) => dispatch(apiEndpointChanged(endpoint))}
+          onTokenChange={(token) => dispatch(apiTokenChanged(token))}
           onDownload={handleDownload}
         />
 
@@ -444,22 +395,15 @@ function EditorPage() {
           mcqTextValue={focusState.mcqTextValue}
           dropTargetId={dragDrop.dropTargetId}
           dropPosition={dragDrop.dropPosition}
-          onTitleChange={(newTitle) => dispatch(setTitle(newTitle))}
-          onContentUpdate={(id, updates) => dispatch(updateContent({ id, updates }))}
-          onDeleteContent={(id) => dispatch(deleteContent(id))}
-          onAddBelowClick={(e, contentId) => {
-            menus.setCommandMenu({
-              anchor: e.currentTarget,
-              contentId,
-              mode: 'addBelow',
-            });
-          }}
-          onContentMenuClick={(e, contentId) => {
-            menus.setContentMenu({
-              anchor: e.currentTarget,
-              contentId,
-            });
-          }}
+          onTitleChange={(newTitle) => dispatch(worksheetTitleChanged(newTitle))}
+          onContentUpdate={(id, updates) => dispatch(worksheetContentUpdated({ id, updates }))}
+          onDeleteContent={(id) => dispatch(worksheetContentDeleted(id))}
+          onAddBelowClick={(e, contentId) =>
+            menus.setCommandMenu({ anchor: e.currentTarget, contentId, mode: 'addBelow' })
+          }
+          onContentMenuClick={(e, contentId) =>
+            menus.setContentMenu({ anchor: e.currentTarget, contentId })
+          }
           onDragStart={dragDrop.handleDragStart}
           onDragEnd={() => dragDrop.setDragId(null)}
           onDragOver={dragDrop.handleDragOver}
@@ -470,9 +414,7 @@ function EditorPage() {
             focusState.setFocusedMCQId(id);
             focusState.setMcqTextValue(textValue);
           }}
-          onMCQBlur={() => {
-            focusState.setFocusedMCQId(null);
-          }}
+          onMCQBlur={() => focusState.setFocusedMCQId(null)}
           onMCQTextChange={focusState.setMcqTextValue}
           onStartGuidedCreation={startGuidedCreation}
           onWelcomeContentCreate={handleWelcomeContentCreate}
@@ -509,39 +451,20 @@ function EditorPage() {
         onSelect={handleCommandSelect}
         onAIButtonClick={(contentType, contentId) => {
           const mode = menus.commandMenu.mode === 'transform' ? 'transform' : 'addBelow';
-
-          // Get existing content for transform mode
           let contextText = '';
           if (mode === 'transform' && contentId) {
-            const currentContent = content.find((c) => c.id === contentId);
-            if (currentContent) {
-              if (currentContent.type === 'text') {
-                contextText = currentContent.text;
-              } else if (currentContent.type === 'multiple-choice') {
-                contextText = `Frage: ${currentContent.question}\n\nAntworten:\n${currentContent.answers.map((a) => `- ${a.text}${a.correct ? ' (richtig)' : ''}`).join('\n')}`;
-              }
+            const cur = content.find((c) => c.id === contentId);
+            if (cur) {
+              if (cur.type === 'text') contextText = cur.text;
+              else if (cur.type === 'multiple-choice')
+                contextText = `Frage: ${cur.question}\n\nAntworten:\n${cur.answers.map((a) => `- ${a.text}${a.correct ? ' (richtig)' : ''}`).join('\n')}`;
             }
           }
-
           if (contentType === 'multiple-choice') {
-            setAiQuestionDialog({
-              open: true,
-              context: contextText,
-              loading: false,
-              targetContentId: contentId,
-              mode,
-            });
+            setAiQuestionDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode });
           } else if (contentType === 'text') {
-            setAiTextDialog({
-              open: true,
-              context: contextText,
-              loading: false,
-              targetContentId: contentId,
-              mode,
-            });
+            setAiTextDialog({ open: true, context: contextText, loading: false, targetContentId: contentId, mode });
           }
-
-          // Close the command menu
           menus.setCommandMenu({ anchor: null, contentId: null, mode: 'transform' });
         }}
       />
@@ -552,7 +475,7 @@ function EditorPage() {
         onClose={() => menus.setContentMenu({ anchor: null, contentId: null })}
         onDuplicate={() => {
           if (menus.contentMenu.contentId) {
-            dispatch(duplicateContent(menus.contentMenu.contentId));
+            dispatch(worksheetContentDuplicated(menus.contentMenu.contentId));
           }
           menus.setContentMenu({ anchor: null, contentId: null });
         }}
@@ -566,14 +489,10 @@ function EditorPage() {
         onClose={() => menus.setTurnIntoMenuAnchor(null)}
         onMouseLeave={() => menus.setTurnIntoMenuAnchor(null)}
         onSelect={(contentType) => {
-          if (menus.contentMenu.contentId) {
-            handleTurnInto(menus.contentMenu.contentId, contentType);
-          }
+          if (menus.contentMenu.contentId) handleTurnInto(menus.contentMenu.contentId, contentType);
         }}
         onAITransform={(contentType) => {
-          if (menus.contentMenu.contentId) {
-            handleAITurnInto(menus.contentMenu.contentId, contentType);
-          }
+          if (menus.contentMenu.contentId) handleAITurnInto(menus.contentMenu.contentId, contentType);
         }}
       />
 

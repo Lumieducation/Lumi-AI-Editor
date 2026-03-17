@@ -5,7 +5,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch as useReduxDispatch, useSelector as useReduxSelector } from 'react-redux';
 
 import chatReducer from './chat/reducer';
-import editorReducer from '../sections/editor/store/editor-slice';
+import lumiEditorReducer from './lumi-editor/lumiEditorSlice';
 
 // ----------------------------------------------------------------------
 
@@ -13,11 +13,11 @@ const localStoragePersistenceMiddleware: Middleware = (storeApi) => (next) => (a
   const result = next(action);
   const state = storeApi.getState() as any;
   if (
-    action.type === 'editor/setProvider' ||
-    action.type === 'editor/setApiEndpoint' ||
-    action.type === 'editor/setApiToken'
+    action.type === 'lumiEditor/providerChanged' ||
+    action.type === 'lumiEditor/apiEndpointChanged' ||
+    action.type === 'lumiEditor/apiTokenChanged'
   ) {
-    const { apiConfig } = state.editor;
+    const { apiConfig } = state.lumiEditor;
     if (typeof window !== 'undefined') {
       localStorage.setItem('api_provider', apiConfig.provider);
       localStorage.setItem('api_endpoint', apiConfig.apiEndpoint);
@@ -29,7 +29,7 @@ const localStoragePersistenceMiddleware: Middleware = (storeApi) => (next) => (a
 
 const rootReducer = combineReducers({
   chat: chatReducer,
-  editor: editorReducer,
+  lumiEditor: lumiEditorReducer,
 });
 
 const store = configureStore({
@@ -37,8 +37,6 @@ const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(localStoragePersistenceMiddleware),
 });
-
-// const persistor = persistStore(store);
 
 export type RootState = ReturnType<typeof rootReducer>;
 export type AppDispatch = typeof store.dispatch;

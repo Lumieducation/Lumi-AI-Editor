@@ -1,7 +1,8 @@
 import type { ChatMessage, PreviewDocument } from './types';
 
-export const CHAT_MESSAGE_SEND = 'CHAT_MESSAGE_SEND';
-export const CHAT_MESSAGE_RECEIVED = 'CHAT_MESSAGE_RECEIVED';
+export const CHAT_MESSAGE_ADDED = 'CHAT_MESSAGE_ADDED';
+export const CHAT_MESSAGES_SET = 'CHAT_MESSAGES_SET';
+export const CHAT_CLEARED = 'CHAT_CLEARED';
 export const CHAT_API_PENDING = 'CHAT_API_PENDING';
 export const CHAT_API_SETTLED = 'CHAT_API_SETTLED';
 export const CHAT_H5P_GENERATING = 'CHAT_H5P_GENERATING';
@@ -9,14 +10,18 @@ export const CHAT_H5P_GENERATED = 'CHAT_H5P_GENERATED';
 export const CHAT_H5P_ERROR = 'CHAT_H5P_ERROR';
 export const CHAT_PREVIEW_UPDATED = 'CHAT_PREVIEW_UPDATED';
 
-export interface ChatSendMessageAction {
-  type: typeof CHAT_MESSAGE_SEND;
+export interface ChatMessageAddedAction {
+  type: typeof CHAT_MESSAGE_ADDED;
   payload: ChatMessage;
 }
 
-export interface ChatReceiveMessageAction {
-  type: typeof CHAT_MESSAGE_RECEIVED;
-  payload: ChatMessage;
+export interface ChatMessagesSetAction {
+  type: typeof CHAT_MESSAGES_SET;
+  payload: ChatMessage[];
+}
+
+export interface ChatClearedAction {
+  type: typeof CHAT_CLEARED;
 }
 
 export interface ChatApiPendingAction {
@@ -47,8 +52,9 @@ export interface ChatPreviewUpdatedAction {
 }
 
 export type ChatActionTypes =
-  | ChatSendMessageAction
-  | ChatReceiveMessageAction
+  | ChatMessageAddedAction
+  | ChatMessagesSetAction
+  | ChatClearedAction
   | ChatApiPendingAction
   | ChatApiSettledAction
   | ChatH5pGeneratingAction
