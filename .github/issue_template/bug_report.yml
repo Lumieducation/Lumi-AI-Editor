@@ -1,0 +1,101 @@
+name: "🐞 Bug Report"
+description: Report a reproducible problem or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the details below as thoroughly as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 🧩 Description
+      description: What happened? What did you expect to happen?
+      placeholder: |
+        A clear and concise description of the bug.
+        Include what you expected vs what actually happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 🔁 Steps to Reproduce
+      description: How can we reproduce the issue?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Run command '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal-repro
+    attributes:
+      label: 🔬 Minimal Reproducible Example
+      description: Provide a minimal code example or repo link if possible
+      placeholder: |
+        Paste code, link a repo, or provide a gist
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 📜 Logs / Error Messages
+      description: Paste any relevant logs, stack traces, or screenshots
+      render: shell
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 💻 Environment
+      description: Details about your setup
+      placeholder: |
+        - OS: (e.g., Windows 11, macOS 14, Ubuntu 22.04)
+        - Browser: (if applicable)
+        - Node/Python/etc version:
+        - Project version / commit:
+    validations:
+      required: true
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: 🔄 Regression?
+      description: Did this work before?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+
+  - type: textarea
+    id: frequency
+    attributes:
+      label: 📈 Frequency
+      description: How often does this happen?
+      placeholder: |
+        Always / Sometimes / Rarely
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 🚨 Impact
+      description: How severe is this issue?
+      placeholder: |
+        Blocks development, minor annoyance, data loss risk, etc.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: ✅ Checklist
+      options:
+        - label: I have searched existing issues
+          required: true
+        - label: I have provided sufficient information for reproduction
+          required: true
